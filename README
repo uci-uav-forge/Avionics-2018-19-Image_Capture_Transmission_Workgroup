@@ -1,0 +1,14 @@
+This server client code is used to transfer images between the raspberry pi client in the plane and the server at the ground station
+To start transfering the file, first type in command make to make sure all updates in the code is updated in the execution file
+After make, start the server first before running the client
+To start the server, simply run the server with a four digit port number greater than 6000, 
+which will be the code for this specific connection, the format is ./server 9999
+Then, to start a client that will connect to the server, the host name of the server need to be entered in the command line
+For example, if using the EECS zuma server, the client execution command should be ./client zuma 9999
+Notice that the port number and the host of the server must be correct for the connection to be successful
+After connecting the server and the client, the server can send request to the client for certain action
+For now, the implemented server requests are: pull, exit, shutdown
+"pull" means to ask the client to send the target image file to the server
+"bye" means to close the socket between the server and client, or, in other words, shutdown the client itself
+"shutdown" means to close the socket first and then shutdown both the client and the server
+
