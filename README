@@ -1,14 +1,12 @@
-This server client code is used to transfer images between the raspberry pi client in the plane and the server at the ground station
-To start transfering the file, first type in command make to make sure all updates in the code is updated in the execution file
-After make, start the server first before running the client
-To start the server, simply run the server with a four digit port number greater than 6000, 
-which will be the code for this specific connection, the format is ./server 9999
-Then, to start a client that will connect to the server, the host name of the server need to be entered in the command line
-For example, if using the EECS zuma server, the client execution command should be ./client zuma 9999
-Notice that the port number and the host of the server must be correct for the connection to be successful
-After connecting the server and the client, the server can send request to the client for certain action
-For now, the implemented server requests are: pull, exit, shutdown
-"pull" means to ask the client to send the target image file to the server
-"bye" means to close the socket between the server and client, or, in other words, shutdown the client itself
-"shutdown" means to close the socket first and then shutdown both the client and the server
+UAVForge
 
+This program is designed to transfer files from the raspberry pi on the plane (client), to the ground station (server).
+
+To start transfering files, follow the steps listed below:
+1. enter "make" to create all executables (client,server)
+2. enter "./server port_number", where port_number is a four digit port number greater than 6000.
+3. on a new tab, enter "./client ip_address port_number", where ip_address is the IP Address of host(server). port_number is the same Port Number used by the server.
+The server and client should now be connected. You may now choose from the following 3 commands:
+4a. from the server, enter "new". This will send a request to the client, where you may enter a file to send; example: "star.jpg". The file should now be sent to the server. 
+4b. enter "bye" from the server to shutdown only the client.
+4c. enter "shutdown" to disconnect the socket and shutdown the server and client.

@@ -2,7 +2,7 @@
 Mohammad Gagai
 Client for UAVForge
 
-last updated : 01/25/2018
+last updated : 03/07/2019
 */
 
 #include <stdio.h>
@@ -11,7 +11,10 @@ last updated : 01/25/2018
 #include <string.h>
 #include <netinet/in.h>
 #include <netdb.h>
-
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <arpa/inet.h>
 
 void FatalError(const char *Program, const char *ErrorMsg)
 {
@@ -25,6 +28,22 @@ void FatalError(const char *Program, const char *ErrorMsg)
 
 int main(int argc, char *argv[])
 {
+
+    char terminator[20] = "jerrrrybeanz";
+
+    char finalName[100] = "done";
+    //char done[10] = "done";
+    char ext[10] = ".jpg";
+    char number[5] = "1";
+    int first = 0;
+    int counter = 0;
+    char c;
+
+
+    int bytesReceived = 0;
+    char recvBuff[1024];
+    memset(recvBuff, '0', sizeof(recvBuff));
+
     int l, n;
     int ServSocketFD,	/* socket file descriptor for service */
 	DataSocketFD,	/* socket file descriptor for data */
@@ -87,7 +106,7 @@ int main(int argc, char *argv[])
             /*Let user select which option he wants*/
             /*If none of these typed, will just send message to client*/
             Bye = 0;
-            printf("\n%s: enter 'pull' to receive an image,\n"
+            printf("\n%s: enter 'new' to receive an image,\n"
             "   enter 'bye' to close the client,\n"
             "   enter 'shutdown' to close the client and server:\n"
             "message: ", argv[0]);
@@ -124,33 +143,80 @@ int main(int argc, char *argv[])
                 SendBuf[sizeof(SendBuf)-1] = 0;
             }
 
-          
-            /* If client types 'pull', wait to process*/
-            if (0 == strcmp(SendBuf, "pull")) {
-                
-                /*Read Picture Size*/
-                //printf("Reading Picture Size\n");
-                int size;
-                read(DataSocketFD, &size, sizeof(int));
-                //printf("Size = %d\n",size);
-                
-                /*Store entire buffer into 'done.png'*/
-                FILE *fp;
-                fp = fopen("done.png","w");
-                char buffer[size];
-                read(DataSocketFD , buffer , size);
-                
-                for(int i = 0; i < size; i++) {
-                    //printf("sendbuffer[%d] = %c \n",i,buffer[i]); //This line is for debugging only
-                    fprintf(fp , "%c" , buffer[i]);     //Store char by char into done.png
-                }
-                fclose(fp);
-                
-                printf("The file was received successfully\n");
+
+            /* If client types 'new', wait to process*/
+            if (0 == strcmp(SendBuf, "new")) {
+         	/* Create file where data will be stored */
+        	FILE *fp;
+        	char fname[100];
+        	read(DataSocketFD, fname, 256);
+        	printf("File Name: %s\n",fname);
+        	printf("Receiving file...");
+
+		/* Output file renaming:  */
+		if( first == 0) {
+		   c = number[0];	
+		   strcat(finalName,number);
+                   strcat(finalName,ext);
+		   counter++;
+
+                   fp = fopen(finalName, "wb");
+                   if(NULL == fp) {
+                      printf("Error opening file");
+                      return 1;
+                   }
+		}
+
+		else {
+    		   char done[10] = "done";
+		   
+		   if (counter == 9) {
+                	c = 48;
+		   }
+
+		   counter++;
+		   c = c + 1;
+		   number[0] = c;
+                   strcat(done,number);
+                   strcat(done,ext);
+	
+                   fp = fopen(done, "wb");
+                   if(NULL == fp) {
+                      printf("Error opening file");
+                      return 1;
+                   }
+		}
+
+	    first = 1;
+
+	    long double sz=1;
+
+    	    /* Receive data in chunks of 1024 bytes (1KB) */
+	    char test[20];
+    	    while((bytesReceived = read(DataSocketFD, recvBuff, sizeof(recvBuff)-1  )) > 0) {
+		if (bytesReceived != 1023)	//For Debugging
+			//printf("bytereceived = %d",bytesReceived);
+		sz++;
+
+		for (int i = 0; i< 12; i++)
+		test[i] = recvBuff[i];
+
+	    if(!strcmp(test,terminator)) 
+		break;
+	
+                fwrite(recvBuff, 1,bytesReceived,fp);
+	    }
+	
+    	    if(bytesReceived < 0) {
+        	printf("\n Read Error \n");
+    	    }
+
+	    printf("\nFile OK....Completed\n");
+
+            fclose(fp);
             }
 
 	} while(!Bye && !Shutdown);
-	printf("%s: Received last message from client, closing data connection.\n", argv[0]);
 	close(DataSocketFD);
 
     } while(!Shutdown);

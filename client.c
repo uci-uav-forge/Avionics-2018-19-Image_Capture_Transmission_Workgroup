@@ -2,7 +2,7 @@
 Mohammad Gagai
 Client for UAVForge
 
-last updated: 01/25/2019
+last updated: 03/07/2019
 */
 
 #include <stdio.h>
@@ -11,6 +11,62 @@ last updated: 01/25/2019
 #include <string.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <pthread.h>
+
+char fname[100];	//Name of the file
+int SocketFD;		//socket file descriptor 
+char terminator[20] = "jerrrrybeanz";
+
+int s;
+pthread_t tid;
+
+void* SendFileToClient(void *arg)
+{
+
+       write(SocketFD, fname,256);
+        FILE *fp = fopen(fname,"rb");
+        if(fp==NULL)
+        {   
+            printf("File opern error");
+            return (int*)1;
+        }
+        /* Read data from file and send it */
+        while(1)
+        {
+            /* First read file in chunks of 256 bytes */
+            unsigned char buff[1024]={0};
+            int nread = fread(buff,1,1024,fp);
+            
+            /* If read was success, send data. */
+            if(nread > 0)
+            {   
+                write(SocketFD, buff, nread);
+            }
+            if (nread < 1024)
+            {   
+                if (feof(fp))
+                {   
+                    printf("End of file\n");
+                    printf("File transfer completed for id: %d\n",SocketFD);
+                }
+                if (ferror(fp))
+                    printf("Error reading\n");
+                break;
+            }
+        }
+
+	sleep(1);
+	write(SocketFD, terminator, 12);
+	printf("Closing Connection for id: %d\n",SocketFD);
+	sleep(2);
+	return 0;
+}
+
 
 void FatalError(const char *Program, const char *ErrorMsg)
 {
@@ -24,9 +80,9 @@ void FatalError(const char *Program, const char *ErrorMsg)
 
 int main(int argc, char *argv[])
 {
+
     int n;
-    int SocketFD,	/* socket file descriptor */
-	PortNo;		/* port number */
+    int PortNo;		/* port number */
     struct sockaddr_in
 	ServerAddress;	/* server address we connect with */
     struct hostent
@@ -76,59 +132,42 @@ int main(int argc, char *argv[])
 /*	Main Code	*/
 	do{
         
-        /* Process the request sent by server (pull, bye, shutdown) */
+        /* Process the request sent by server (new, bye, shutdown) */
         n = read(SocketFD, RecvBuf, sizeof(RecvBuf)-1);
         if (n < 0) {
             FatalError(argv[0], "reading from data socket failed");
             }
         RecvBuf[n] = 0;
-        printf("%s: Received message: %s\n", argv[0], RecvBuf);
 
-        
-        /*If server sent string "pull"*/
-        if( !strcmp(RecvBuf,"pull") ) {
-            //printf("TRYING TO PUSH IMAGE\n");
-            
-            /*Getting size of image:*/
-            //printf("Getting Picture Size\n");
-            FILE *filePointer;
-            filePointer = fopen("star.png", "r");
-            int size;
-            fseek(filePointer, 0, SEEK_END);
-            size = ftell(filePointer);
-            //printf("size of the image is = %d\n",size);
+        /*If server sent string "new"*/
+        if( !strcmp(RecvBuf,"new") ) {
+           printf("Enter file name to send: ");
+           gets(fname);
 
-            /*Sets the file pointer to the beginning of the image*/
-            fseek(filePointer, 0, SEEK_SET);
-            rewind(filePointer);
-            
-            /*Send the size of the image to server*/
-            //printf("Sending Picture Size\n");
-            write(SocketFD, &size, sizeof(size));
+	   int err;
+           err = pthread_create(&tid, NULL, &SendFileToClient, &SocketFD);
 
-            /*Sending Image here : */
-            //printf("Sending Picture as Byte Array\n");
-            char send_buffer[size]; // For now, this send_buffer is same as the file size (sending in one chunk)
-            int nb = fread(send_buffer, 1, sizeof(send_buffer), filePointer);
-            
-            while(!feof(filePointer)) {   // This while loop only runs once for now cuz sending in 1 chunk
-                //printf("nb = %d\n",nb);
-                write(SocketFD, send_buffer, nb);   //Sending entire image to server
-                
-                /*This For Loop is only for debugging*/
-                /*Shows all the characters in the buffer one by one*/
-                //for(int i = 0; i < size; i++)
-                    //printf("sendbuffer[%d] = %c \n",i,send_buffer[i]);
-                
-                nb = fread(send_buffer, 1, sizeof(send_buffer), filePointer);
-            }
-            //printf("DONE WHILE LOOP\n");
-        }
+	   sleep(2);
+	   pthread_cancel(tid);
+
+	   void *res;
+
+	   s = pthread_join(tid, &res);
+    	   if (s != 0)
+		printf("pthread_join error\n");
+
+	   /*For Debugging
+	   if (res == PTHREAD_CANCELED)
+        	printf("main(): thread was canceled\n");
+    	   else
+        	printf("main(): thread wasn't canceled (shouldn't happen!)\n");
+	   */
+	}
 
         /*If server sent string "bye"*/
         if( !strcmp(RecvBuf,"bye") )
 		break;
-        
+
         /*If server sent string "shutdown"*/
         if( !strcmp(RecvBuf,"shutdown") )
 		break;
