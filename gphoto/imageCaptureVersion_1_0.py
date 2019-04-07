@@ -1,10 +1,15 @@
+#Put the link to the reference here
+
+
 from time import sleep
 from datetime import datetime
 from sh import gphoto2 as gp
 import signal, os, subprocess
 
-#kill gphoto2 process that starts whenever we connect the camera
+#For the hardware activation:
+import RPi.GPIO as GPIO
 
+#kill gphoto2 process that starts whenever we connect the camera
 def killgphoto2Process():
     p = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
     out, err = p.communicate()
@@ -17,18 +22,10 @@ def killgphoto2Process():
             os.kill(pid,signal.SIGKILL)
 
 
-shot_date = datetime.now().strftime("%Y-%m-%d")
-shot_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-picID = "PiShots"
-
-triggerCommand = ["--trigger-capture"]
-
-
 def captureImages():
     print("before triggerCommand.")
     gp(triggerCommand)
-    #sleep(1)
-    #sleep(2)
+    
 
 def renameFiles(ID):
     for filename in os.listdir("."):
@@ -37,24 +34,59 @@ def renameFiles(ID):
                 #os.rename(filename, (shot_time + ID + ".JPG"))
                 os.rename(filename, "new.JPG")
                 print("Renamed the JPG")
-                
 
+triggerCommand = ["--trigger-capture"]
+
+
+shot_date = datetime.now().strftime("%Y-%m-%d")
+shot_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+picID = "Image"
+
+
+#Willy: We can still take 10 photo with commenting killgphoto2Process(). Why? What is killgphoto2Process is for? 
 killgphoto2Process()
-for x in range(10):
-    shot_date = datetime.now().strftime("%Y-%m-%d")
-    shot_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #createSaveFolder()
-    captureImages()
-    #renameFiles(picID)
-    #sleep(2)
 
 
 
+
+#For hardware activation
+GPIO.setmode(GPIO.BCM)
+
+GPIO.setup(2, GPIO.IN)
+
+while True:
+    if GPIO.input(2) == 0:
+        shot_date = datetime.now().strftime("%Y-%m-%d")
+        shot_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        #createSaveFolder()
+        captureImages()
+        #renameFiles(picID)
+    else:
+        print("else")
+        sleep(2)
+    
 
 
 
 
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
